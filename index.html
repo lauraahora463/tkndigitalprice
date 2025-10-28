@@ -4,11 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulador de Trading TKN y Análisis Técnico</title>
+    <title>Comparador de Cotizaciones y Análisis Técnico</title>
 
-    <!-- Tailwind CSS y Fuente Inter -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         /* Estilos Base: Fondo oscuro y fuente */
@@ -21,7 +22,7 @@
 
         /* Contenedor de la gráfica y Card de Contenido */
         #chartContainer {
-            height: 60vh;
+            height: 55vh; 
             max-width: 1200px;
             margin: 0 auto;
             border-radius: 1rem;
@@ -41,7 +42,6 @@
             padding: 1.5rem;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
             overflow: hidden;
-            /* Necesario para el efecto de despliegue */
         }
 
         /* Estilo para el input y el botón de despliegue del acordeón */
@@ -55,7 +55,6 @@
 
         .accordion-content.open {
             max-height: 500px;
-            /* Suficientemente grande para el contenido */
             opacity: 1;
             padding-top: 1rem;
         }
@@ -73,7 +72,6 @@
 
         .auth-input:focus {
             border-color: #38bdf8;
-            /* Tailwind sky-400 */
         }
 
         .auth-btn {
@@ -82,16 +80,21 @@
             font-weight: 600;
             transition: background-color 0.2s, transform 0.1s;
         }
-
+        
+        /* Estilo para el botón de ordenar activo */
+        .auth-btn.active {
+            background-color: #38bdf8; /* Azul */
+            color: #0d1117;
+        }
+        
         .auth-btn:hover {
             transform: translateY(-1px);
         }
 
-        /* --- Estilos para la Animación de Scroll (Scroll Reveal) --- */
+        /* --- Estilos de Scroll (Sin cambios) --- */
         .scroll-reveal {
             opacity: 0;
             transform: translateX(-100px);
-            /* Oculto a la izquierda por defecto */
             transition: opacity 1s ease-out, transform 1s ease-out;
             will-change: opacity, transform;
         }
@@ -101,10 +104,8 @@
             transform: translateX(0);
         }
 
-        /* Para que el segundo elemento entre desde la derecha (opcional pero elegante) */
         .scroll-reveal:nth-child(even) {
             transform: translateX(100px);
-            /* Oculto a la derecha */
         }
 
         .scroll-reveal:nth-child(even).visible {
@@ -122,97 +123,53 @@
 
 <body class="p-4 flex flex-col items-center">
 
-    <!-- SECCIÓN 1: ENCABEZADO Y TCKER -->
     <header class="w-full max-w-7xl text-center py-4 mb-4">
         <h1 class="text-4xl font-extrabold text-teal-400">Herramientas fundamentales de arbitraje</h1>
     </header>
 
-    <!-- CONTENEDOR PRINCIPAL: PANEL DE PRECIOS Y AUTENTICACIÓN -->
     <div class="w-full max-w-7xl flex flex-col md:flex-row justify-between gap-4 mb-6">
 
-        <!-- PANEL DE PRECIO PRINCIPAL -->
         <div id="price-panel" class="w-full md:w-2/3 bg-[#161b22] p-4 rounded-lg shadow-xl border border-teal-500/50">
 
-            <!-- Ticker Principal -->
-            <div class="p-2">
-                <span class="text-xl md:text-2xl font-bold text-gray-300">Criptomoneda (ARS/USD)</span>
-                <div class="flex items-end mt-1">
-                    <span id="current-price"
-                        class="text-4xl md:text-5xl font-extrabold text-green-400 mr-4">$0.00</span>
-                    <span id="price-change" class="text-lg md:text-xl font-semibold text-green-500">
-                        <span id="change-icon">▲</span> <span id="change-value">0.00%</span>
-                    </span>
-                </div>
-            </div>
-
-            <!-- Cotizaciones en Tiempo Real -->
-            <div id="realtime-rates" class="mt-4 border-t border-gray-700 pt-3">
+            <div id="realtime-rates" class="mt-4 pt-3">
                 <h3 class="text-lg font-bold text-teal-300 mb-2 flex items-center">
                     <svg class="w-5 h-5 mr-2 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
-                    Cotizaciones en Tiempo Real
+                    Cotizaciones Dólar (CriptoYa)
                 </h3>
                 <div id="rates-list" class="text-sm text-gray-300 space-y-1">
                     <p>💵 Dólar Blue: <span id="rate-blue" class="font-semibold text-green-400">Cargando...</span></p>
                     <p>🏦 Dólar Oficial: <span id="rate-oficial" class="font-semibold text-green-400">Cargando...</span>
                     </p>
-                    <p>📊 Dólar MEP: <span id="rate-mep" class="font-semibold text-green-400">Cargando...</span></p>
-                    <p>💼 Dólar CCL: <span id="rate-ccl" class="font-semibold text-green-400">Cargando...</span></p>
+                    <p>📊 Dólar MEP (AL30): <span id="rate-mep" class="font-semibold text-green-400">Cargando...</span></p>
+                    <p>💼 Dólar CCL (AL30): <span id="rate-ccl" class="font-semibold text-green-400">Cargando...</span></p>
                 </div>
             </div>
         </div>
 
-        <!-- SCRIPT DE COTIZACIONES -->
-        <script>
-            // --- COTIZACIONES REALES DE DÓLAR ARGENTINO ---
-            async function fetchDolarRates() {
-                try {
-                    const res = await fetch("https://dolarapi.com/v1/dolares");
-                    const data = await res.json();
-
-                    const blue = data.find(d => d.nombre === "Blue");
-                    const oficial = data.find(d => d.nombre === "Oficial");
-                    const mep = data.find(d => d.nombre === "Bolsa");
-                    const ccl = data.find(d => d.nombre === "Contado con liquidación");
-
-                    document.getElementById("rate-blue").textContent = blue?.venta ? `$${blue.venta.toFixed(2)}` : "N/D";
-                    document.getElementById("rate-oficial").textContent = oficial?.venta ? `$${oficial.venta.toFixed(2)}` : "N/D";
-                    document.getElementById("rate-mep").textContent = mep?.venta ? `$${mep.venta.toFixed(2)}` : "N/D";
-                    document.getElementById("rate-ccl").textContent = ccl?.venta ? `$${ccl.venta.toFixed(2)}` : "N/D";
-                } catch (err) {
-                    console.error("Error obteniendo cotizaciones:", err);
-                    document.getElementById("rates-list").innerHTML = `<p class="text-red-400">❌ Error al cargar cotizaciones</p>`;
-                }
-            }
-
-            // Actualiza cada 5 minutos
-            fetchDolarRates();
-            setInterval(fetchDolarRates, 300000);
-        </script>
-
-        <!-- Panel de Autenticación (Derecha/Abajo) -->
         <div id="auth-panel"
             class="w-full md:w-1/3 bg-[#161b22] p-4 rounded-lg shadow-xl border border-purple-500/50 flex flex-col justify-center">
-            <!-- Contenido de Autenticación se renderizará aquí -->
-        </div>
+            </div>
 
     </div>
 
-    <!-- SECCIÓN 2: GRÁFICA INTERACTIVA -->
+    <div class="w-full max-w-7xl mb-4 flex flex-col md:flex-row justify-end gap-2">
+        <button id="sort-price-desc" class="auth-btn bg-indigo-600 hover:bg-indigo-700 text-white active">Ordenar por Precio (Mayor a Menor)</button>
+        <button id="sort-price-asc" class="auth-btn bg-gray-600 hover:bg-gray-700 text-white">Ordenar por Precio (Menor a Mayor)</button>
+        <button id="sort-variation" class="auth-btn bg-gray-600 hover:bg-gray-700 text-white">Ordenar por Variación</button>
+        <button id="sort-name" class="auth-btn bg-gray-600 hover:bg-gray-700 text-white">Ordenar por Nombre</button>
+    </div>
+    
     <div id="chartContainer" class="p-2 mb-10 w-full max-w-7xl">
         <canvas id="cryptoChart"></canvas>
     </div>
 
-    <!-- SECCIÓN 3: HERRAMIENTAS DE ANÁLISIS TÉCNICO (Acordeón y Scroll Reveal) -->
     <main class="w-full max-w-7xl px-4 md:px-0">
         <h2 class="text-3xl font-bold text-purple-400 mb-6 border-b border-gray-700 pb-2">Herramientas Clave de Análisis
             Gráfico</h2>
-
         <div class="grid md:grid-cols-2 gap-6 mb-12">
-
-            <!-- Herramienta 1: Diferencial de Tipo de Cambio -->
             <div class="content-card scroll-reveal">
                 <div class="flex items-center justify-between cursor-pointer" onclick="toggleAccordion(this)">
                     <h3 class="text-xl font-bold text-gray-200 flex items-center">
@@ -235,19 +192,9 @@
                         es la base del arbitraje cambiario en Argentina. Permite detectar oportunidades de ganancia al
                         operar entre
                         mercados con brechas significativas.</p>
-                    <ul class="list-disc ml-5 mt-3 text-sm text-gray-500 space-y-1">
-                        <li><strong>Brecha Cambiaria:</strong> Diferencia porcentual entre cotizaciones paralelas y
-                            oficiales.</li>
-                        <li><strong>Indicador Clave:</strong> Brechas superiores al 10% pueden habilitar operaciones de
-                            arbitraje.</li>
-                        <li><strong>Uso Técnico:</strong> Monitorear en tiempo real cotizaciones de fuentes confiables
-                            (BCRA, dólar MEP,
-                            CCL, Blue).</li>
-                    </ul>
                 </div>
             </div>
 
-            <!-- Herramienta 2: Spread entre Exchanges o Brokers -->
             <div class="content-card scroll-reveal">
                 <div class="flex items-center justify-between cursor-pointer" onclick="toggleAccordion(this)">
                     <h3 class="text-xl font-bold text-gray-200 flex items-center">
@@ -271,18 +218,9 @@
                         plataformas. En arbitraje, un spread amplio entre exchanges o brokers puede aprovecharse
                         comprando en el más
                         barato y vendiendo en el más caro.</p>
-                    <ul class="list-disc ml-5 mt-3 text-sm text-gray-500 space-y-1">
-                        <li><strong>Spread Efectivo:</strong> (Precio venta - Precio compra) / Precio venta × 100.</li>
-                        <li><strong>Plataformas Comunes:</strong> Binance P2P, Lemon, Belo, Buenbit, Satoshitango, Cocos
-                            Capital.</li>
-                        <li><strong>Estrategia:</strong> Automatizar la detección con APIs y bots para ejecutar
-                            operaciones en tiempo
-                            real.</li>
-                    </ul>
                 </div>
             </div>
 
-            <!-- Herramienta 3: Monitoreo de Liquidez -->
             <div class="content-card scroll-reveal">
                 <div class="flex items-center justify-between cursor-pointer" onclick="toggleAccordion(this)">
                     <h3 class="text-xl font-bold text-gray-200 flex items-center">
@@ -304,18 +242,9 @@
                         operación sin
                         afectar el precio. En arbitraje, mercados con baja liquidez pueden generar slippage y reducir la
                         rentabilidad.</p>
-                    <ul class="list-disc ml-5 mt-3 text-sm text-gray-500 space-y-1">
-                        <li><strong>Orden Book:</strong> Analizar profundidad y tamaño de órdenes en tiempo real.</li>
-                        <li><strong>Slippage:</strong> Diferencia entre el precio esperado y el ejecutado por baja
-                            liquidez.</li>
-                        <li><strong>Herramientas:</strong> APIs de Binance, Cocos, Bitso o Rava para lectura directa de
-                            volumen y
-                            profundidad.</li>
-                    </ul>
                 </div>
             </div>
 
-            <!-- Herramienta 4: Bots y Automatización de Arbitraje -->
             <div class="content-card scroll-reveal">
                 <div class="flex items-center justify-between cursor-pointer" onclick="toggleAccordion(this)">
                     <h3 class="text-xl font-bold text-gray-200 flex items-center">
@@ -338,49 +267,39 @@
                         precio entre diferentes mercados o tipos de cambio. Permiten reaccionar en milisegundos, algo
                         imposible
                         manualmente.</p>
-                    <ul class="list-disc ml-5 mt-3 text-sm text-gray-500 space-y-1">
-                        <li><strong>API Automation:</strong> Integración con APIs de exchange para lectura y ejecución
-                            simultánea.</li>
-                        <li><strong>Delay Control:</strong> Ajustar tiempos de reacción para evitar bloqueos o errores
-                            por latencia.</li>
-                        <li><strong>Seguridad:</strong> Encriptar claves API y monitorear ejecución con logs y
-                            validaciones IP.</li>
-                    </ul>
                 </div>
             </div>
-
-
         </div>
     </main>
 
-    <!-- SECCIÓN 4: CÓDIGO JAVASCRIPT -->
     <script type="text/javascript">
         document.addEventListener('DOMContentLoaded', () => {
             // --- CONSTANTES DEL DOM Y CONFIGURACIÓN ---
             const chartCanvas = document.getElementById('cryptoChart');
-            const chartCtx = chartCanvas.getContext('2d');
-            const chartContainerElement = document.getElementById('chartContainer');
-            const currentPriceElement = document.getElementById('current-price');
-            const priceChangeElement = document.getElementById('change-value');
-            const changeIconElement = document.getElementById('change-icon');
             const authPanel = document.getElementById('auth-panel');
+            
+            // Constantes del Ticker Panel
+            const rateBlue = document.getElementById('rate-blue');
+            const rateOficial = document.getElementById('rate-oficial');
+            const rateMep = document.getElementById('rate-mep');
+            const rateCcl = document.getElementById('rate-ccl');
 
-            // --- CONFIGURACIÓN DE LA SIMULACIÓN DE TRADING ---
-            const CANDLE_COUNT = 60;
-            const PRICE_BASE = 85.00;
-            const PRICE_VOLATILITY = 5.00;
-            const PRICE_DECAY = 0.9995;
-            let lastClosePrice = PRICE_BASE;
-            let candles = [];
+            // --- CONFIGURACIÓN DEL GRÁFICO DE BARRAS ---
+            const FETCH_INTERVAL = 300000; // 300,000 ms = 5 minutos
+            let myBarChart; // Variable global para el gráfico
+            let fullApiData = []; // Variable global para guardar los datos y poder ordenarlos
+            
+            // Botones de ordenar
+            const sortButtons = {
+                priceDesc: document.getElementById('sort-price-desc'),
+                priceAsc: document.getElementById('sort-price-asc'),
+                variation: document.getElementById('sort-variation'),
+                name: document.getElementById('sort-name')
+            };
 
-            // --- LÓGICA DE AUTENTICACIÓN ---
-
+            // --- LÓGICA DE AUTENTICACIÓN (Sin cambios) ---
             const STORAGE_KEY = 'tkn_current_user';
             let currentUser = null;
-
-            /**
-             * Intenta cargar el usuario de localStorage al inicio.
-             */
             function loadUserFromStorage() {
                 const userData = localStorage.getItem(STORAGE_KEY);
                 if (userData) {
@@ -393,39 +312,21 @@
                     }
                 }
             }
-
-            /**
-             * Guarda la información del usuario en localStorage.
-             * Ahora guarda email, teléfono y CONTRASEÑA.
-             * @param {Object} user - Objeto con los datos del usuario (email, phone, password, etc.)
-             */
             function saveUserToStorage(user) {
-                // !!! ADVERTENCIA DE SEGURIDAD CRÍTICA !!!
-                // En una aplicación real, NUNCA se debe guardar la contraseña (user.password) 
-                // en texto plano en localStorage, ni siquiera para "comunicación". 
                 currentUser = {
                     email: user.email,
                     phone: user.phone || null,
-                    password: user.password || null // Guardando la contraseña según solicitud.
+                    password: user.password || null
                 };
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(currentUser));
                 renderAuthPanel();
             }
-
-            /**
-             * Cierra la sesión y elimina el usuario de localStorage.
-             */
             function logout() {
                 currentUser = null;
                 localStorage.removeItem(STORAGE_KEY);
                 renderAuthPanel();
             }
-
-            /**
-             * Simula el registro de un nuevo usuario.
-             */
             function handleRegister(email, phone, password) {
-                // Validación: email y contraseña (mínimo 6) obligatorios. Teléfono es opcional.
                 if (!email || password.length < 6) {
                     displayMessage('El email y la contraseña (mínimo 6 caracteres) son obligatorios.', 'red');
                     return;
@@ -434,41 +335,24 @@
                     displayMessage('El campo de teléfono debe ser un número válido.', 'red');
                     return;
                 }
-
-                // Simulación de que el registro es exitoso
                 displayMessage(`¡Registro exitoso para ${email}! Iniciando sesión...`, 'green');
-                // Se guardan email, phone Y password.
                 saveUserToStorage({ email, phone, password });
             }
-
-            /**
-             * Simula el inicio de sesión.
-             */
             function handleLogin(email, password) {
-                // Validación simple
                 if (!email || !password) {
                     displayMessage('Introduce tu email y contraseña.', 'red');
                     return;
                 }
-
-                // Simulación: cualquier email con una contraseña de 6+ caracteres es válido
                 if (password.length >= 6) {
                     displayMessage(`¡Bienvenido de nuevo, ${email}!`, 'green');
-                    // Al iniciar sesión, solo necesitamos el email, ya que el resto de datos 
-                    // (teléfono/contraseña) ya están en localStorage si se registraron previamente.
                     saveUserToStorage({ email });
                 } else {
                     displayMessage('Credenciales incorrectas (Simulación).', 'red');
                 }
             }
-
-            /**
-             * Muestra un mensaje temporal en el panel de autenticación.
-             */
             function displayMessage(message, color) {
                 const messageBox = authPanel.querySelector('#auth-message');
                 if (messageBox) {
-                    // Clases hardcodeadas para Tailwind dinámico
                     const bgColor = color === 'red' ? 'bg-red-600/80' : 'bg-green-600/80';
                     messageBox.className = `p-2 mb-3 text-sm rounded-lg text-white ${bgColor}`;
                     messageBox.textContent = message;
@@ -478,19 +362,11 @@
                     }, 4000);
                 }
             }
-
-            /**
-             * Renderiza el formulario de Login/Register o la info del usuario.
-             */
             function renderAuthPanel(mode = 'login') {
                 authPanel.innerHTML = `<div id="auth-message" class="mb-3"></div>`;
-
                 if (currentUser) {
-                    // Estado Logueado
-                    // Muestra el email, teléfono y el recordatorio de la contraseña guardada
                     const phoneDisplay = currentUser.phone ? `<p class="text-sm text-gray-400 mb-2">📞 ${currentUser.phone}</p>` : '';
                     const passwordWarning = currentUser.password ? `<p class="text-xs text-red-400 italic">⚠️ Contraseña guardada: ${currentUser.password}</p>` : '';
-
                     authPanel.innerHTML += `
                         <div class="text-center">
                             <h3 class="text-xl font-bold text-teal-400">Bienvenido</h3>
@@ -502,38 +378,32 @@
                     `;
                     document.getElementById('logout-btn').addEventListener('click', logout);
                 } else {
-                    // Estado Deslogueado (Login/Register)
                     let phoneInputHTML = '';
                     if (mode === 'register') {
                         phoneInputHTML = `<input type="tel" id="auth-phone" class="auth-input" placeholder="Teléfono (Opcional)">`;
                     }
-
                     const formHTML = `
                         <h3 class="text-xl font-bold text-purple-400 mb-4">${mode === 'login' ? 'Iniciar Sesión' : 'Registro'}</h3>
                         <form id="auth-form" class="flex flex-col space-y-3">
                             <input type="email" id="auth-email" class="auth-input" placeholder="Email" required>
-                            ${phoneInputHTML} <!-- Campo de teléfono -->
+                            ${phoneInputHTML}
                             <input type="password" id="auth-password" class="auth-input" placeholder="Contraseña (mín. 6)" required>
-                            
                             <button type="submit" class="auth-btn bg-indigo-600 hover:bg-indigo-700 text-white">
                                 ${mode === 'login' ? 'Acceder' : 'Registrarse'}
                             </button>
                         </form>
                         <p class="text-center text-xs mt-3 text-gray-400">
                             ${mode === 'login'
-                            ? '¿No tienes cuenta? <a href="#" id="toggle-register" class="text-purple-400 hover:text-purple-300">Regístrate</a>'
-                            : '¿Ya tienes cuenta? <a href="#" id="toggle-login" class="text-purple-400 hover:text-purple-300">Inicia Sesión</a>'
-                        }
+                                ? '¿No tienes cuenta? <a href="#" id="toggle-register" class="text-purple-400 hover:text-purple-300">Regístrate</a>'
+                                : '¿Ya tienes cuenta? <a href="#" id="toggle-login" class="text-purple-400 hover:text-purple-300">Inicia Sesión</a>'
+                            }
                         </p>
                     `;
                     authPanel.innerHTML += formHTML;
-
-                    // Manejo del envío del formulario
                     document.getElementById('auth-form').addEventListener('submit', (e) => {
                         e.preventDefault();
                         const email = document.getElementById('auth-email').value;
                         const password = document.getElementById('auth-password').value;
-
                         if (mode === 'register') {
                             const phone = document.getElementById('auth-phone').value;
                             handleRegister(email, phone, password);
@@ -541,8 +411,6 @@
                             handleLogin(email, password);
                         }
                     });
-
-                    // Manejo del cambio de modo
                     if (document.getElementById('toggle-register')) {
                         document.getElementById('toggle-register').addEventListener('click', (e) => {
                             e.preventDefault();
@@ -557,240 +425,297 @@
                     }
                 }
             }
-
-            // Inicializar la autenticación
             loadUserFromStorage();
             renderAuthPanel(currentUser ? 'logged' : 'login');
-
-
             // --- FIN DE LÓGICA DE AUTENTICACIÓN ---
 
 
-            // --- LÓGICA DE LA GRÁFICA ---
+            // --- *** LÓGICA DE GRÁFICO CON API CRIPTOYA *** ---
 
             /**
-             * Genera una nueva vela (OHLC) basándose en el precio de cierre anterior.
+             * Busca datos de CriptoYa y actualiza toda la página.
              */
-            function generateNewCandle() {
-                const open = lastClosePrice;
-                let close = open + (Math.random() * PRICE_VOLATILITY * 2 - PRICE_VOLATILITY) * (1 + (Math.random() - 0.5) * 0.1);
+            async function fetchAndUpdateData() {
+                 try {
+                    const res = await fetch("https://criptoya.com/api/dolar");
+                    if (!res.ok) throw new Error('Error al cargar datos de CriptoYa');
+                    
+                    const data = await res.json();
+                    
+                    // 1. Actualiza el panel de Tickers (Blue, Oficial, etc.)
+                    updateTickerPanel(data);
+                    
+                    // 2. Parsea los datos y los guarda en la variable global
+                    parseApiData(data);
+                    
+                    // 3. Dibuja/Actualiza el gráfico (la primera vez lo inicializa)
+                    // Busca el botón activo actual para mantener el orden
+                    const currentSort = document.querySelector('.auth-btn.active').id.split('-').pop(); // 'desc', 'asc', 'variation', 'name'
+                    let sortCriteria = 'priceDesc'; // default
+                    if (currentSort === 'asc') sortCriteria = 'priceAsc';
+                    if (currentSort === 'variation') sortCriteria = 'variation';
+                    if (currentSort === 'name') sortCriteria = 'name';
+                    
+                    sortAndRedraw(sortCriteria);
 
-                const driftFactor = 1 - (close - PRICE_BASE) / (PRICE_BASE * 10) * (1 - PRICE_DECAY);
-                close *= driftFactor;
+                 } catch (err) {
+                    console.error("Error obteniendo cotizaciones:", err);
+                 }
+            }
+            
+            /**
+             * Actualiza el panel de cotizaciones (Blue, Oficial, MEP, CCL)
+             */
+            function updateTickerPanel(data) {
+                rateBlue.textContent = data?.blue?.ask ? `$${data.blue.ask.toFixed(2)}` : "N/D";
+                rateOficial.textContent = data?.oficial?.price ? `$${data.oficial.price.toFixed(2)}` : "N/D";
+                rateMep.textContent = data?.mep?.al30?.["24hs"]?.price ? `$${data.mep.al30["24hs"].price.toFixed(2)}` : "N/D";
+                rateCcl.textContent = data?.ccl?.al30?.["24hs"]?.price ? `$${data.ccl.al30["24hs"].price.toFixed(2)}` : "N/D";
+            }
+            
+            /**
+             * *** MODIFICADO: Parsea la respuesta de la API a un array limpio (con más datos) ***
+             */
+            function parseApiData(data) {
+                fullApiData = [
+                    // Simples
+                    { 
+                        name: 'Oficial', 
+                        price: data.oficial?.price || 0, 
+                        variation: data.oficial?.variation || 0
+                    },
+                    { 
+                        name: 'Blue', 
+                        price: data.blue?.ask || 0, 
+                        variation: data.blue?.variation || 0
+                    },
+                    
+                    // Cripto
+                    { 
+                        name: 'Cripto (USDT)', 
+                        price: data.cripto?.usdt?.ask || 0, 
+                        variation: data.cripto?.usdt?.variation || 0
+                    },
+                    { 
+                        name: 'Cripto (USDC)', 
+                        price: data.cripto?.usdc?.ask || 0, 
+                        variation: data.cripto?.usdc?.variation || 0
+                    },
+                    { 
+                        name: 'Cripto (CCB)', 
+                        price: data.cripto?.ccb?.ask || 0, 
+                        variation: data.cripto?.ccb?.variation || 0
+                    },
 
-                const bodyMin = Math.min(open, close);
-                const bodyMax = Math.max(open, close);
+                    // MEP
+                    { 
+                        name: 'MEP (AL30)', 
+                        price: data.mep?.al30?.["24hs"]?.price || 0, 
+                        variation: data.mep?.al30?.["24hs"]?.variation || 0
+                    },
+                    { 
+                        name: 'MEP (GD30)', 
+                        price: data.mep?.gd30?.["24hs"]?.price || 0, 
+                        variation: data.mep?.gd30?.["24hs"]?.variation || 0
+                    },
+                    { 
+                        name: 'MEP (Letras)', // API usa 'letras'
+                        price: data.mep?.letras?.["24hs"]?.price || 0, 
+                        variation: data.mep?.letras?.["24hs"]?.variation || 0
+                    },
+                    { 
+                        name: 'MEP (BPO27)', 
+                        price: data.mep?.bpo27?.["24hs"]?.price || 0, 
+                        variation: data.mep?.bpo27?.["24hs"]?.variation || 0
+                    },
 
-                const high = bodyMax + Math.random() * PRICE_VOLATILITY * 0.2;
-                const low = bodyMin - Math.random() * PRICE_VOLATILITY * 0.2;
-
-                const finalLow = Math.min(low, bodyMin);
-                const finalHigh = Math.max(high, bodyMax);
-
-                lastClosePrice = close;
-
-                return { open, high: finalHigh, low: finalLow, close, timestamp: Date.now() };
+                    // CCL
+                    { 
+                        name: 'CCL (AL30)', 
+                        price: data.ccl?.al30?.["24hs"]?.price || 0, 
+                        variation: data.ccl?.al30?.["24hs"]?.variation || 0
+                    },
+                    { 
+                        name: 'CCL (GD30)', 
+                        price: data.ccl?.gd30?.["24hs"]?.price || 0, 
+                        variation: data.ccl?.gd30?.["24hs"]?.variation || 0
+                    },
+                    { 
+                        name: 'CCL (Letras)', 
+                        price: data.ccl?.letras?.["24hs"]?.price || 0, 
+                        variation: data.ccl?.letras?.["24hs"]?.variation || 0
+                    },
+                    { 
+                        name: 'CCL (BPO27)', 
+                        price: data.ccl?.bpo27?.["24hs"]?.price || 0, 
+                        variation: data.ccl?.bpo27?.["24hs"]?.variation || 0
+                    }
+                ];
+                
+                // Filtro para eliminar datos que vinieron en 0 (API a veces no reporta)
+                fullApiData = fullApiData.filter(d => d.price > 0);
             }
 
-            /**
-             * Genera los datos iniciales de las velas.
-             */
-            function initializeCandles() {
-                for (let i = 0; i < CANDLE_COUNT; i++) {
-                    const newCandle = generateNewCandle();
-                    candles.push(newCandle);
-                    lastClosePrice = newCandle.close;
-                }
-                lastClosePrice = candles[candles.length - 1].close;
-            }
-
-            initializeCandles();
-
 
             /**
-             * Normaliza las coordenadas del precio a la posición Y del canvas.
+             * *** MODIFICADO: Añadidos más colores para las nuevas barras ***
              */
-            function getY(price, minPrice, maxPrice, height) {
-                const priceRange = maxPrice - minPrice;
-                const normalizedY = 1 - ((price - minPrice) / priceRange);
-                return normalizedY * height;
-            }
-
-            /**
-             * Dibuja la gráfica de velas en el canvas.
-             */
-            function drawChart() {
-                const width = chartCanvas.width;
-                const height = chartCanvas.height;
-
-                chartCtx.clearRect(0, 0, width, height);
-
-                // Rango de precios y buffer
-                const prices = candles.flatMap(c => [c.high, c.low]);
-                if (prices.length === 0) return;
-
-                const minPrice = Math.min(...prices) * 0.9999;
-                const maxPrice = Math.max(...prices) * 1.0001;
-                const priceRange = maxPrice - minPrice;
-
-                const candleSpacing = width / CANDLE_COUNT;
-                const currentCandleWidth = candleSpacing * 0.7;
-
-                // 1. Dibujar Cuadrícula
-                chartCtx.strokeStyle = '#2d333b';
-                chartCtx.lineWidth = 1;
-                const gridLines = 5;
-                for (let i = 0; i < gridLines; i++) {
-                    const y = (height / (gridLines - 1)) * i;
-                    chartCtx.beginPath();
-                    chartCtx.moveTo(0, y);
-                    chartCtx.lineTo(width, y);
-                    chartCtx.stroke();
-                }
-
-                // 2. Dibujar Velas (Candlesticks)
-                candles.forEach((candle, index) => {
-                    const x = index * candleSpacing + (candleSpacing - currentCandleWidth) / 2;
-
-                    const yOpen = getY(candle.open, minPrice, maxPrice, height);
-                    const yClose = getY(candle.close, minPrice, maxPrice, height);
-                    const yHigh = getY(candle.high, minPrice, maxPrice, height);
-                    const yLow = getY(candle.low, minPrice, maxPrice, height);
-
-                    const isBullish = candle.close > candle.open;
-                    const color = isBullish ? '#10b981' : '#ef4444';
-
-                    chartCtx.fillStyle = color;
-                    chartCtx.strokeStyle = color;
-                    chartCtx.lineWidth = 1;
-
-                    // Dibujar la Mecha
-                    chartCtx.beginPath();
-                    chartCtx.moveTo(x + currentCandleWidth / 2, yHigh);
-                    chartCtx.lineTo(x + currentCandleWidth / 2, yLow);
-                    chartCtx.stroke();
-
-                    // Dibujar el Cuerpo
-                    const bodyTop = Math.min(yOpen, yClose);
-                    const bodyHeight = Math.abs(yOpen - yClose);
-                    const actualBodyHeight = Math.max(1, bodyHeight);
-                    const actualBodyTop = bodyHeight < 1 ? (isBullish ? yClose - 0.5 : yOpen - 0.5) : bodyTop;
-
-                    chartCtx.fillRect(x, actualBodyTop, currentCandleWidth, actualBodyHeight);
+            function initializeChart() {
+                const ctx = chartCanvas.getContext('2d');
+                
+                // Colores para las barras
+                const colors = [
+                    'rgba(54, 162, 235, 0.7)', // Blue
+                    'rgba(75, 192, 192, 0.7)', // Green (Teal)
+                    'rgba(255, 206, 86, 0.7)', // Yellow
+                    'rgba(255, 99, 132, 0.7)', // Red
+                    'rgba(153, 102, 255, 0.7)', // Purple
+                    'rgba(255, 159, 64, 0.7)', // Orange
+                    'rgba(199, 199, 199, 0.7)', // Grey
+                    'rgba(83, 109, 254, 0.7)', // Indigo
+                    'rgba(0, 230, 118, 0.7)', // Light Green
+                    'rgba(240, 98, 146, 0.7)', // Pink
+                    'rgba(255, 238, 88, 0.7)', // Bright Yellow
+                    'rgba(179, 157, 219, 0.7)', // Light Purple
+                    'rgba(66, 165, 245, 0.7)'  // Light Blue
+                ];
+                
+                myBarChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: [], // Se llenará con sortAndRedraw
+                        datasets: [{
+                            label: 'Precio en ARS',
+                            data: [], // Se llenará con sortAndRedraw
+                            backgroundColor: colors,
+                            borderColor: colors.map(c => c.replace('0.7', '1')),
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false // Oculta la leyenda (es obvio)
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    // Tooltip personalizado para mostrar precio y variación
+                                    label: function(context) {
+                                        // Buscamos el item por el nombre para obtener la variación
+                                        const item = fullApiData.find(d => d.name === context.label);
+                                        const price = `Precio: $${context.raw.toFixed(2)}`;
+                                        
+                                        let variation = 'Variación: N/A';
+                                        if (item) {
+                                             variation = `Variación: ${item.variation.toFixed(2)}%`;
+                                        }
+                                        return [price, variation];
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                ticks: {
+                                    color: '#e6e6e6' // Color de texto eje Y
+                                },
+                                grid: {
+                                    color: '#2d333b' // Color de cuadrícula eje Y
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    color: '#e6e6e6' // Color de texto eje X
+                                },
+                                grid: {
+                                    color: 'transparent' // Sin cuadrícula eje X
+                                }
+                            }
+                        }
+                    }
                 });
+            }
 
-                // 3. Dibujar Eje de Precios (Derecha)
-                chartCtx.font = '10px Inter';
-                chartCtx.fillStyle = '#e6e6e6';
-
-                for (let i = 0; i < gridLines; i++) {
-                    const y = (height / (gridLines - 1)) * i;
-                    const price = maxPrice - (priceRange / (gridLines - 1)) * i;
-                    const formattedPrice = '$' + price.toFixed(2);
-
-                    chartCtx.textAlign = 'left';
-                    chartCtx.fillText(formattedPrice, width + 5, y + 3);
-
-                    chartCtx.beginPath();
-                    chartCtx.moveTo(width, y);
-                    chartCtx.lineTo(width - 5, y);
-                    chartCtx.stroke();
+            /**
+             * Actualiza el gráfico con los datos ya ordenados (Sin cambios)
+             */
+            function updateChart(sortedData) {
+                if (!myBarChart) {
+                    initializeChart();
                 }
-
-                // 4. Dibujar Precio Actual (Línea de Close)
-                const lastY = getY(lastClosePrice, minPrice, maxPrice, height);
-                const lastClosePriceFormatted = lastClosePrice.toFixed(2);
-
-                chartCtx.strokeStyle = '#e6e6e6';
-                chartCtx.lineWidth = 2;
-                chartCtx.setLineDash([5, 5]);
-                chartCtx.beginPath();
-                chartCtx.moveTo(0, lastY);
-                chartCtx.lineTo(width, lastY);
-                chartCtx.stroke();
-                chartCtx.setLineDash([]);
-
-                chartCtx.fillStyle = '#e6e6e6';
-                chartCtx.textAlign = 'right';
-                chartCtx.fillRect(width, lastY - 8, 70, 16);
-                chartCtx.fillStyle = '#161b22';
-                chartCtx.fillText('$' + lastClosePriceFormatted, width + 65, lastY + 4);
-
-                updatePricePanel(candles);
+                
+                // Extrae los nombres y precios del array ordenado
+                myBarChart.data.labels = sortedData.map(d => d.name);
+                myBarChart.data.datasets[0].data = sortedData.map(d => d.price);
+                
+                // Actualiza el gráfico
+                myBarChart.update();
             }
 
             /**
-             * Actualiza el panel de precios principal con la última vela.
+             * Ordena los datos según el criterio y actualiza el gráfico (Sin cambios)
              */
-            function updatePricePanel(currentCandles) {
-                if (currentCandles.length < 2) return;
-
-                const lastCandle = currentCandles[currentCandles.length - 1];
-                const prevCandle = currentCandles[currentCandles.length - 2];
-
-                const currentPrice = lastCandle.close;
-                const change = currentPrice - prevCandle.close;
-                const percentageChange = (change / prevCandle.close) * 100;
-
-                const isPositive = change >= 0;
-                const priceClass = isPositive ? 'text-green-400' : 'text-red-400';
-                const changeClass = isPositive ? 'text-green-500' : 'text-red-500';
-                const changeIcon = isPositive ? '▲' : '▼';
-
-                currentPriceElement.textContent = '$' + currentPrice.toFixed(2);
-                currentPriceElement.className = `text-4xl md:text-5xl font-extrabold mr-4 ${priceClass}`;
-
-                priceChangeElement.textContent = `${percentageChange.toFixed(2)}%`;
-                priceChangeElement.parentElement.className = `text-lg md:text-xl font-semibold ${changeClass}`;
-
-                changeIconElement.textContent = changeIcon;
+            function sortAndRedraw(criteria) {
+                let sortedData = [...fullApiData]; // Copia los datos para no modificar el original
+                
+                switch (criteria) {
+                    case 'priceDesc':
+                        sortedData.sort((a, b) => b.price - a.price);
+                        break;
+                    case 'priceAsc':
+                        sortedData.sort((a, b) => a.price - a.price);
+                        break;
+                    case 'variation':
+                        sortedData.sort((a, b) => b.variation - a.variation);
+                        break;
+                    case 'name':
+                        sortedData.sort((a, b) => a.name.localeCompare(b.name));
+                        break;
+                }
+                
+                // Actualiza la clase 'active' en los botones
+                Object.values(sortButtons).forEach(btn => btn.classList.remove('active', 'bg-indigo-600', 'hover:bg-indigo-700'));
+                Object.values(sortButtons).forEach(btn => btn.classList.add('bg-gray-600', 'hover:bg-gray-700'));
+                
+                let activeButton;
+                if(criteria === 'priceDesc') activeButton = sortButtons.priceDesc;
+                if(criteria === 'priceAsc') activeButton = sortButtons.priceAsc;
+                if(criteria === 'variation') activeButton = sortButtons.variation;
+                if(criteria === 'name') activeButton = sortButtons.name;
+                
+                activeButton.classList.remove('bg-gray-600', 'hover:bg-gray-700');
+                activeButton.classList.add('active', 'bg-indigo-600', 'hover:bg-indigo-700');
+                
+                // Llama a la función que actualiza el canvas
+                updateChart(sortedData);
             }
 
+            // --- INICIO DE EJECUCIÓN ---
 
-            /**
-             * Función para actualizar la gráfica con nuevos datos (cada segundo).
-             */
-            function updateChartData() {
-                candles.shift();
-                candles.push(generateNewCandle());
-                drawChart();
-            }
-
-            // --- LÓGICA DE REDIMENSIONAMIENTO RESPONSIVO ---
-            const chartResizeObserver = new ResizeObserver(entries => {
-                const containerEntry = entries.find(entry => entry.target === chartContainerElement);
-                if (!containerEntry) return;
-
-                const newRect = containerEntry.contentRect;
-                // El ancho debe ser todo el contenedor menos el espacio para las etiquetas de precio
-                chartCanvas.width = newRect.width - 75;
-                chartCanvas.height = newRect.height;
-
-                drawChart();
-            });
-
-            chartResizeObserver.observe(chartContainerElement);
-
-            // Inicio del loop de simulación
-            drawChart();
-            setInterval(updateChartData, 1000);
+            // Añadimos los listeners a los botones
+            sortButtons.priceDesc.addEventListener('click', () => sortAndRedraw('priceDesc'));
+            sortButtons.priceAsc.addEventListener('click', () => sortAndRedraw('priceAsc'));
+            sortButtons.variation.addEventListener('click', () => sortAndRedraw('variation'));
+            sortButtons.name.addEventListener('click', () => sortAndRedraw('name'));
+            
+            // Primera llamada al cargar
+            fetchAndUpdateData();
+            
+            // Loop de actualización
+            setInterval(fetchAndUpdateData, FETCH_INTERVAL); 
 
 
-            // --- LÓGICA DE ACORDEÓN (Botón Desplegable) ---
-
-            /**
-             * Alterna la visibilidad y aplica la transición del contenido del acordeón.
-             * @param {HTMLElement} headerElement - El elemento que contiene el título (donde se hizo click).
-             */
+            // --- LÓGICA DE ACORDEÓN (Botón Desplegable) - Sin cambios ---
             window.toggleAccordion = function (headerElement) {
                 const parentCard = headerElement.closest('.content-card');
                 const content = parentCard.querySelector('.accordion-content');
                 const arrowIcon = headerElement.querySelector('[data-arrow-icon]');
 
-                // Alternar la clase 'open' para activar las transiciones CSS
                 content.classList.toggle('open');
 
-                // Rotar el icono de flecha
                 if (content.classList.contains('open')) {
                     arrowIcon.classList.remove('rotate-0');
                     arrowIcon.classList.add('rotate-180');
@@ -800,33 +725,24 @@
                 }
             };
 
-
-            // --- LÓGICA DE ANIMACIÓN AL HACER SCROLL (Intersection Observer) ---
-
+            // --- LÓGICA DE ANIMACIÓN AL HACER SCROLL (Intersection Observer) - Sin cambios ---
             const scrollRevealElements = document.querySelectorAll('.scroll-reveal');
-
             const observerOptions = {
-                root: null, // El viewport es el elemento raíz
+                root: null,
                 rootMargin: '0px',
-                threshold: 0.2 // Se activa cuando el 20% del elemento es visible
+                threshold: 0.2
             };
-
             const observer = new IntersectionObserver((entries, observer) => {
                 entries.forEach(entry => {
                     if (entry.isIntersecting) {
-                        // Si el elemento es visible, añade la clase 'visible'
                         entry.target.classList.add('visible');
-                        // Deja de observar el elemento una vez que se ha animado
                         observer.unobserve(entry.target);
                     }
                 });
             }, observerOptions);
-
-            // Empezar a observar todos los elementos
             scrollRevealElements.forEach(el => {
                 observer.observe(el);
             });
-
 
         });
     </script>
